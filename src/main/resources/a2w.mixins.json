@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.tofu26.a2w.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "MapWidgetMixin",
+    "ClickMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
