@@ -3,10 +3,7 @@ package com.tofu26.a2w.mixin;
 import net.blay09.mods.waystones.api.IWaystone;
 import net.blay09.mods.waystones.api.IWaystoneTeleportContext;
 import net.blay09.mods.waystones.api.WaystonesAPI;
-import net.blay09.mods.waystones.config.WaystonesConfig;
 import net.blay09.mods.waystones.core.PlayerWaystoneManager;
-import net.blay09.mods.waystones.core.WarpMode;
-import net.blay09.mods.waystones.core.Waystone;
 import net.blay09.mods.waystones.core.WaystoneTeleportContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -14,18 +11,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ColumnPos;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import pepjebs.mapatlases.client.screen.AtlasOverviewScreen;
+import pepjebs.mapatlases.client.screen.DecorationBookmarkButton;
 import pepjebs.mapatlases.client.screen.MapWidget;
-import pepjebs.mapatlases.item.MapAtlasItem;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -43,69 +36,85 @@ public class MapWidgetMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void addCoordinatesToTeleportTooltip(GuiGraphics graphics, int pMouseX, int pMouseY, float pPartialTick, CallbackInfo ci) {
 
-        MapWidget widget = (MapWidget) (Object) this;  // Get the current MapWidget instance
+        MapWidget widget = (MapWidget) (Object) this;
         Minecraft mc = Minecraft.getInstance();
-        Player player = mc.player;  // Get the current player
+        Player player = mc.player;
         Collection<IWaystone> activatedWaystones = WaystonesAPI.getActivatedWaystones(player);
 
-        // Using reflection to access the private mapScreen field
         try {
+            // Reflect to access 'mapScreen' from MapWidget
             Field mapScreenField = MapWidget.class.getDeclaredField("mapScreen");
-            mapScreenField.setAccessible(true); // Make the private field accessible
+            mapScreenField.setAccessible(true);
             Object mapScreen = mapScreenField.get(widget);
+            if (mapScreen == null) return;
 
-            // Using reflection to access the private isHovered field
+            // Check hover status
             Field isHoveredField = MapWidget.class.getDeclaredField("isHovered");
             isHoveredField.setAccessible(true);
             boolean isHovered = (boolean) isHoveredField.get(widget);
+            if (!isHovered) return;
 
-            // Only proceed if the widget is hovered and teleporting is allowed
-            if (isHovered && mapScreen != null){
-                // Using reflection to access the private getHoveredPos method
-                java.lang.reflect.Method getHoveredPosMethod = MapWidget.class.getDeclaredMethod("getHoveredPos", double.class, double.class);
-                getHoveredPosMethod.setAccessible(true);
-                ColumnPos playerPos = (ColumnPos) getHoveredPosMethod.invoke(widget, pMouseX, pMouseY);
+            // Get hovered column position
+            Method getHoveredPosMethod = MapWidget.class.getDeclaredMethod("getHoveredPos", double.class, double.class);
+            getHoveredPosMethod.setAccessible(true);
+            ColumnPos playerPos = (ColumnPos) getHoveredPosMethod.invoke(widget, pMouseX, pMouseY);
 
-                // Use reflection to access the private getSelectedSlice() method
-                Method getSelectedSliceMethod = mapScreen.getClass().getDeclaredMethod("getSelectedSlice");
-                getSelectedSliceMethod.setAccessible(true); // Make the private method accessible
-                Object selectedSlice = getSelectedSliceMethod.invoke(mapScreen); // Invoke the method
-                if (selectedSlice == null) {
-                    throw new NullPointerException("selectedSlice is null");
-                }
+            // Reflect to get selected slice and dimension
+            Method getSelectedSliceMethod = mapScreen.getClass().getDeclaredMethod("getSelectedSlice");
+            getSelectedSliceMethod.setAccessible(true);
+            Object selectedSlice = getSelectedSliceMethod.invoke(mapScreen);
+            if (selectedSlice == null) return;
 
-                Method dimensionMethod = selectedSlice.getClass().getDeclaredMethod("dimension");
-                dimensionMethod.setAccessible(true); // Make the method accessible
-                Object dimension = dimensionMethod.invoke(selectedSlice); // Invoke to get the dimension
+            Method dimensionMethod = selectedSlice.getClass().getDeclaredMethod("dimension");
+            dimensionMethod.setAccessible(true);
+            Object dimension = dimensionMethod.invoke(selectedSlice);
 
-                for (IWaystone waystone : activatedWaystones) {
-                    BlockPos waystonePos = waystone.getPos();
-                    Field zoomLevelField = MapWidget.class.getDeclaredField("targetZoomLevel");
-                    zoomLevelField.setAccessible(true);
-                    float zoomLevel = zoomLevelField.getFloat(widget);  // assuming it's a float
-                    // Check if the hovered position falls within a 5x5 area around the waystone
-                    int hoverAreaRadius = 4+Math.round(4 * zoomLevel);  // for example
+            Field zoomLevelField = MapWidget.class.getDeclaredField("targetZoomLevel");
+            zoomLevelField.setAccessible(true);
+            float zoomLevel = zoomLevelField.getFloat(widget);
+            int hoverAreaRadius = 4 + Math.round(4 * zoomLevel);
 
-                    if (waystone.getDimension() == dimension && playerPos.x() >= waystonePos.getX() - (2+zoomLevel) && playerPos.x() <= waystonePos.getX() + hoverAreaRadius &&
-                            playerPos.z() >= waystonePos.getZ() - (2+zoomLevel) && playerPos.z() <= waystonePos.getZ() + hoverAreaRadius) {
-                        // --- Required Setup ---
-                        IWaystoneTeleportContext context = new WaystoneTeleportContext(null, null, null);
-                        // Provide proper values depending on your mod's context
-                        int xpLevelCost = PlayerWaystoneManager.getExperienceLevelCost(player, waystone, WARP_STONE, context);
+            // Reflect to access decorationBookmarks from AtlasOverviewScreen
+            Field decorationBookmarksField = mapScreen.getClass().getDeclaredField("decorationBookmarks");
+            decorationBookmarksField.setAccessible(true);
+            List<?> decorationBookmarks = (List<?>) decorationBookmarksField.get(mapScreen);
 
-                        String coords = String.format("Waystone: %s (%d XP)",
-                                waystone.getName(),
-                                xpLevelCost);
+            for (IWaystone waystone : activatedWaystones) {
+                BlockPos waystonePos = waystone.getPos();
 
-                        graphics.renderTooltip(mc.font, Component.literal(coords).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x00FF00))), pMouseX, pMouseY);
-                        return;  // Only render one tooltip
+                boolean withinHover = waystone.getDimension() == dimension &&
+                        playerPos.x() >= waystonePos.getX() - hoverAreaRadius &&
+                        playerPos.x() <= waystonePos.getX() + hoverAreaRadius &&
+                        playerPos.z() >= waystonePos.getZ() - hoverAreaRadius &&
+                        playerPos.z() <= waystonePos.getZ() + hoverAreaRadius;
+
+                if (!withinHover) continue;
+
+                // Check for matching decoration button
+                boolean foundMatch = false;
+                for (Object obj : decorationBookmarks) {
+                    if (!(obj instanceof DecorationBookmarkButton button)) continue;
+                    if ((int) Math.floor(button.getWorldX()) == waystonePos.getX() && (int) Math.floor(button.getWorldZ()) == waystonePos.getZ()) {
+                        foundMatch = true;
+                        break;
                     }
                 }
 
+                if (foundMatch) {
+                    IWaystoneTeleportContext context = new WaystoneTeleportContext(null, null, null);
+                    int xpLevelCost = PlayerWaystoneManager.getExperienceLevelCost(player, waystone, WARP_STONE, context);
+
+                    String coords = String.format("Warp Here (%d Levels)", xpLevelCost);
+
+                    graphics.renderTooltip(mc.font,
+                            Component.literal(coords).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF))),
+                            pMouseX, pMouseY);
+                    return;
+                }
             }
 
         } catch (Exception e) {
-            e.printStackTrace();  // Handle any reflection issues (e.g., access exceptions)
+            e.printStackTrace();
         }
     }
 }
