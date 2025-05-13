@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ColumnPos;
@@ -104,11 +105,25 @@ public class MapWidgetMixin {
                     IWaystoneTeleportContext context = new WaystoneTeleportContext(null, null, null);
                     int xpLevelCost = PlayerWaystoneManager.getExperienceLevelCost(player, waystone, WARP_STONE, context);
 
-                    String coords = String.format("Warp Here (%d Levels)", xpLevelCost);
+                    // Create styled components
+                    MutableComponent warpText = Component.literal("Warp Here")
+                            .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF))); // White
 
-                    graphics.renderTooltip(mc.font,
-                            Component.literal(coords).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF))),
-                            pMouseX, pMouseY);
+                    Component levelCost = null;
+                    if (xpLevelCost > 0) {
+                        assert player != null;
+                        if (player.experienceLevel < xpLevelCost) {
+                            levelCost = Component.literal(String.format(" (%d Levels)", xpLevelCost))
+                                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555))); // Red
+                        } else {
+                            levelCost = Component.literal(String.format(" (%d Levels)", xpLevelCost))
+                                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x55FF55))); // Green
+                        }
+                    }
+
+                    Component tooltip = levelCost != null ? warpText.append(levelCost) : warpText;
+
+                    graphics.renderTooltip(mc.font, tooltip, pMouseX, pMouseY);
                     return;
                 }
             }
