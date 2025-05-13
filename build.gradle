@@ -5,6 +5,7 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'io.github.0ffz.github-packages' version '[1,2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
 }
 
 version = mod_version
@@ -60,6 +61,10 @@ minecraft {
         data {
             workingDirectory project.file('run-data')
             // Specify the modid for data generation, where to output the resulting resource, and where to look for existing resources.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            args "--mixin", "a2w.mixins.json"
+
             args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
         }
     }
@@ -87,7 +92,7 @@ dependencies {
     implementation fg.deobf("curse.maven:map-atlases-forge-519759:6425194")
     implementation fg.deobf("curse.maven:selene-499980:6500766")
     implementation fg.deobf("curse.maven:supplementaries-412082:6463022")
-
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
@@ -119,7 +124,8 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                "MixinConfigs" : "a2w.mixins.json"
         ])
     }
 
