@@ -106,19 +106,20 @@ public class MapWidgetMixin {
                     int xpLevelCost = PlayerWaystoneManager.getExperienceLevelCost(player, waystone, WARP_STONE, context);
 
                     // Create styled components
-                    MutableComponent warpText = Component.literal("Warp Here")
+                    MutableComponent warpText = Component.translatable("tooltip.warp")
                             .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF))); // White
 
                     Component levelCost = null;
                     if (xpLevelCost > 0) {
                         assert player != null;
-                        if (player.experienceLevel < xpLevelCost) {
-                            levelCost = Component.literal(String.format(" (%d Levels)", xpLevelCost))
-                                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555))); // Red
-                        } else {
-                            levelCost = Component.literal(String.format(" (%d Levels)", xpLevelCost))
-                                    .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x55FF55))); // Green
-                        }
+                        boolean hasEnoughXP = player.experienceLevel >= xpLevelCost;
+
+                        TextColor color = TextColor.fromRgb(hasEnoughXP ? 0x55FF55 : 0xFF5555); // Green or Red
+
+                        String key = xpLevelCost == 1 ? "tooltip.level_cost.single" : "tooltip.level_cost.multiple";
+
+                        levelCost = Component.translatable(key, xpLevelCost)
+                                .setStyle(Style.EMPTY.withColor(color));
                     }
 
                     Component tooltip = levelCost != null ? warpText.append(levelCost) : warpText;

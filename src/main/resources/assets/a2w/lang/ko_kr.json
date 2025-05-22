@@ -1,0 +1,6 @@
+{
+  "message.a2w.no_experience": "경험치가 부족합니다",
+  "tooltip.level_cost.single": " (%d레벨)",
+  "tooltip.level_cost.multiple": " (%d레벨)",
+  "tooltip.warp": "워프"
+}

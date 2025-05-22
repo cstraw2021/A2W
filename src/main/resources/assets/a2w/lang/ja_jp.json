@@ -1,0 +1,6 @@
+{
+  "message.a2w.no_experience": "経験値が足りません",
+  "tooltip.level_cost.single": "（%dレベル）",
+  "tooltip.level_cost.multiple": "（%dレベル）",
+  "tooltip.warp": "ワープ"
+}
